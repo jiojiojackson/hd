@@ -191,6 +191,11 @@
                     if (res.status === 401) {
                         alert('登录失效');
                         logout();
+                    } else if (!res.ok) {
+                        const errData = await res.json().catch(() => ({}));
+                        alert('保存失败: ' + (errData.error || res.statusText));
+                    } else {
+                        // alert('保存成功'); // Optional: feedback on success
                     }
                 };
 
