@@ -45,7 +45,11 @@
                 <div v-for="cat in data.categories" :key="cat.id" @click="scrollToCat(cat.id)"
                     class="px-6 py-3 cursor-pointer hover:bg-gray-800 flex items-center justify-between group">
                     <div class="flex items-center">
-                        <span class="w-6 text-center mr-2">{{ cat.icon }}</span>
+                        <div class="w-6 h-6 flex-shrink-0 mr-2 flex items-center justify-center overflow-hidden">
+                            <img v-if="cat.icon && cat.icon.startsWith('http')" :src="cat.icon"
+                                class="w-full h-full object-contain" onerror="this.style.display='none'">
+                            <span v-else class="text-center">{{ cat.icon }}</span>
+                        </div>
                         <span>{{ cat.name }}</span>
                     </div>
                     <!-- 编辑模式下的删除按钮 -->
@@ -88,7 +92,11 @@
                     <!-- 分类标题 -->
                     <div
                         class="flex items-center mb-4 text-gray-700 text-lg font-medium border-l-4 border-transparent pl-2 hover:border-yellow-500 transition-colors">
-                        <span class="mr-2">{{ cat.icon }}</span>
+                        <div class="w-6 h-6 flex-shrink-0 mr-2 flex items-center justify-center overflow-hidden">
+                            <img v-if="cat.icon && cat.icon.startsWith('http')" :src="cat.icon"
+                                class="w-full h-full object-contain" onerror="this.style.display='none'">
+                            <span v-else>{{ cat.icon }}</span>
+                        </div>
                         {{ cat.name }}
                         <button v-if="isAdmin" @click="openAddItemModal(cat.id)"
                             class="ml-4 text-xs bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600">
@@ -149,7 +157,7 @@
             <div class="bg-white p-6 rounded shadow-lg w-80">
                 <h3 class="font-bold mb-4">添加分类</h3>
                 <input v-model="newCat.name" placeholder="分类名称" class="w-full border p-2 rounded mb-2">
-                <input v-model="newCat.icon" placeholder="图标 (Emoji 或 留空)" class="w-full border p-2 rounded mb-4">
+                <input v-model="newCat.icon" placeholder="图标 (Emoji 或 图标链接)" class="w-full border p-2 rounded mb-4">
                 <div class="flex justify-end gap-2">
                     <button @click="showAddCatModal=false" class="px-3 py-1 text-gray-500">取消</button>
                     <button @click="addCategory" class="px-3 py-1 bg-yellow-500 text-white rounded">添加</button>
