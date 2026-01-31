@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lion 导航</title>
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- 字体图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 3px; }
+        .sidebar-active { background-color: #374151; border-right: 3px solid #f59e0b; }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen flex overflow-hidden text-sm">
+    <div id="app" class="flex w-full h-full">
+
+        <!-- 左侧侧边栏 -->
+        <div class="w-64 bg-gray-900 text-gray-300 flex flex-col flex-shrink-0 transition-all duration-300">
+            <!-- Logo -->
+            <div class="h-16 flex items-center justify-center font-bold text-2xl text-yellow-500 tracking-wider border-b border-gray-800">
+                <i class="fa-solid fa-compass mr-2"></i> LION
+            </div>
+            
+            <!-- 分类列表 -->
+            <div class="flex-1 overflow-y-auto py-4">
+                <div v-for="cat in data.categories" :key="cat.id" 
+                     @click="scrollToCat(cat.id)"
+                     class="px-6 py-3 cursor-pointer hover:bg-gray-800 flex items-center justify-between group">
+                    <div class="flex items-center">
+                        <span class="w-6 text-center mr-2">{{ cat.icon }}</span>
+                        <span>{{ cat.name }}</span>
+                    </div>
+                    <!-- 编辑模式下的删除按钮 -->
+                    <button v-if="isAdmin" @click.stop="deleteCategory(cat.id)" class="text-red-500 opacity-0 group-hover:opacity-100">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+                
+                <!-- 添加分类按钮 -->
+                <div v-if="isAdmin" @click="showAddCatModal=true" class="px-6 py-3 cursor-pointer hover:bg-gray-800 text-yellow-500 text-center border-t border-gray-800 mt-2">
+                    <i class="fa-solid fa-plus"></i> 添加分类
+                </div>
+            </div>
+
+            <!-- 底部登录/退出 -->
+            <div class="p-4 border-t border-gray-800 text-center">
+                <button v-if="!isAdmin" @click="showLoginModal=true" class="text-xs text-gray-500 hover:text-white">管理登录</button>
+                <button v-else @click="logout" class="text-xs text-red-400 hover:text-red-300">退出管理</button>
+            </div>
+        </div>
+
+        <!-- 右侧内容区 -->
+        <div class="flex-1 flex flex-col h-full bg-gray-50">
+            <!-- 顶部栏 -->
+            <div class="h-16 bg-white shadow-sm flex items-center px-6 justify-between flex-shrink-0 z-10">
+                <div class="text-gray-500"><i class="fa-solid fa-bars cursor-pointer"></i></div>
+                <div class="flex items-center gap-4">
+                    <a href="https://github.com" target="_blank" class="text-gray-500 hover:text-black"><i class="fa-brands fa-github"></i> GitHub</a>
+                </div>
+            </div>
+
+            <!-- 网站卡片区域 -->
+            <div id="main-content" class="flex-1 overflow-y-auto p-6 scroll-smooth">
+                
+                <div v-for="cat in data.categories" :key="cat.id" :id="'cat-'+cat.id" class="mb-10">
+                    <!-- 分类标题 -->
+                    <div class="flex items-center mb-4 text-gray-700 text-lg font-medium border-l-4 border-transparent pl-2 hover:border-yellow-500 transition-colors">
+                        <span class="mr-2">{{ cat.icon }}</span>
+                        {{ cat.name }}
+                        <button v-if="isAdmin" @click="openAddItemModal(cat.id)" class="ml-4 text-xs bg-yellow-500 text-white px-2 py-1 rounded hover:bg-yellow-600">
+                            <i class="fa-solid fa-plus"></i> 添加网站
+                        </button>
+                    </div>
+
+                    <!-- 卡片网格 -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        <div v-for="item in getItemsByCat(cat.id)" :key="item.id" 
+                             class="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow group relative border border-gray-100 flex items-start">
+                             
+                            <!-- 删除按钮 -->
+                            <button v-if="isAdmin" @click="deleteItem(item.id)" class="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100">
+                                <i class="fa-solid fa-times-circle"></i>
+                            </button>
+
+                            <!-- 图标 -->
+                            <div class="w-10 h-10 flex-shrink-0 mr-3 rounded-full overflow-hidden bg-gray-50 flex items-center justify-center">
+                                <img v-if="item.icon.startsWith('http')" :src="item.icon" class="w-full h-full object-cover" onerror="this.style.display='none'">
+                                <span v-else class="text-xl">{{ item.icon || '🔗' }}</span>
+                            </div>
+                            
+                            <!-- 内容 -->
+                            <div class="flex-1 min-w-0">
+                                <a :href="item.url" target="_blank" class="block font-bold text-gray-800 truncate hover:text-yellow-600 mb-1">
+                                    {{ item.title }}
+                                </a>
+                                <p class="text-gray-400 text-xs line-clamp-2 h-8" :title="item.desc">{{ item.desc }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- 弹窗组件们 -->
+        <!-- 1. 登录弹窗 -->
+        <div v-if="showLoginModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded shadow-lg w-80">
+                <h3 class="font-bold mb-4">管理员登录</h3>
+                <input v-model="passwordInput" type="password" placeholder="输入密码" class="w-full border p-2 rounded mb-4">
+                <div class="flex justify-end gap-2">
+                    <button @click="showLoginModal=false" class="px-3 py-1 text-gray-500">取消</button>
+                    <button @click="login" class="px-3 py-1 bg-yellow-500 text-white rounded">确定</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 添加分类弹窗 -->
+        <div v-if="showAddCatModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded shadow-lg w-80">
+                <h3 class="font-bold mb-4">添加分类</h3>
+                <input v-model="newCat.name" placeholder="分类名称" class="w-full border p-2 rounded mb-2">
+                <input v-model="newCat.icon" placeholder="图标 (Emoji 或 留空)" class="w-full border p-2 rounded mb-4">
+                <div class="flex justify-end gap-2">
+                    <button @click="showAddCatModal=false" class="px-3 py-1 text-gray-500">取消</button>
+                    <button @click="addCategory" class="px-3 py-1 bg-yellow-500 text-white rounded">添加</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. 添加网站弹窗 -->
+        <div v-if="showAddItemModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded shadow-lg w-96">
+                <h3 class="font-bold mb-4">添加网站</h3>
+                <input v-model="newItem.title" placeholder="网站名称" class="w-full border p-2 rounded mb-2">
+                <input v-model="newItem.url" placeholder="链接地址 (https://...)" class="w-full border p-2 rounded mb-2">
+                <textarea v-model="newItem.desc" placeholder="描述" class="w-full border p-2 rounded mb-2"></textarea>
+                <input v-model="newItem.icon" placeholder="图标链接 或 Emoji" class="w-full border p-2 rounded mb-4">
+                <div class="flex justify-end gap-2">
+                    <button @click="showAddItemModal=false" class="px-3 py-1 text-gray-500">取消</button>
+                    <button @click="addItem" class="px-3 py-1 bg-yellow-500 text-white rounded">保存</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const { createApp, ref, computed, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                const data = ref({ categories: [], items: [] });
+                const isAdmin = ref(false);
+                const passwordInput = ref('');
+                const savedToken = localStorage.getItem('admin_token');
+                if (savedToken) isAdmin.value = true;
+
+                // 弹窗控制
+                const showLoginModal = ref(false);
+                const showAddCatModal = ref(false);
+                const showAddItemModal = ref(false);
+
+                // 表单数据
+                const newCat = ref({ name: '', icon: '' });
+                const newItem = ref({ categoryId: '', title: '', url: '', desc: '', icon: '' });
+
+                // 获取数据
+                const fetchData = async () => {
+                    const res = await fetch('/api/data');
+                    if (res.ok) data.value = await res.json();
+                };
+
+                // 保存数据到 KV
+                const saveData = async () => {
+                    if (!isAdmin.value) return;
+                    const res = await fetch('/api/data', {
+                        method: 'POST',
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${savedToken || localStorage.getItem('admin_token')}`
+                        },
+                        body: JSON.stringify(data.value)
+                    });
+                    if (res.status === 401) {
+                        alert('登录失效');
+                        logout();
+                    }
+                };
+
+                // 登录逻辑
+                const login = () => {
+                    // 这里只是简单的客户端保存，实际验证在保存数据时发生
+                    localStorage.setItem('admin_token', passwordInput.value);
+                    isAdmin.value = true;
+                    showLoginModal.value = false;
+                    passwordInput.value = '';
+                };
+                const logout = () => {
+                    localStorage.removeItem('admin_token');
+                    isAdmin.value = false;
+                };
+
+                // 业务逻辑
+                const getItemsByCat = (catId) => data.value.items.filter(i => i.categoryId === catId);
+
+                const addCategory = () => {
+                    data.value.categories.push({
+                        id: Date.now().toString(),
+                        name: newCat.value.name,
+                        icon: newCat.value.icon || '📁'
+                    });
+                    newCat.value = { name: '', icon: '' };
+                    showAddCatModal.value = false;
+                    saveData();
+                };
+
+                const deleteCategory = (id) => {
+                    if(!confirm('确定删除该分类及其下所有网站吗？')) return;
+                    data.value.categories = data.value.categories.filter(c => c.id !== id);
+                    data.value.items = data.value.items.filter(i => i.categoryId !== id);
+                    saveData();
+                };
+
+                const openAddItemModal = (catId) => {
+                    newItem.value = { categoryId: catId, title: '', url: '', desc: '', icon: '' };
+                    showAddItemModal.value = true;
+                };
+
+                const addItem = () => {
+                    data.value.items.push({
+                        id: Date.now().toString(),
+                        ...newItem.value
+                    });
+                    showAddItemModal.value = false;
+                    saveData();
+                };
+
+                const deleteItem = (id) => {
+                    if(!confirm('确定删除此网站？')) return;
+                    data.value.items = data.value.items.filter(i => i.id !== id);
+                    saveData();
+                };
+
+                const scrollToCat = (id) => {
+                    document.getElementById('cat-' + id).scrollIntoView({ behavior: 'smooth' });
+                };
+
+                onMounted(fetchData);
+
+                return {
+                    data, isAdmin, passwordInput,
+                    showLoginModal, showAddCatModal, showAddItemModal,
+                    newCat, newItem,
+                    login, logout, getItemsByCat,
+                    addCategory, deleteCategory, openAddItemModal, addItem, deleteItem,
+                    scrollToCat
+                };
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
