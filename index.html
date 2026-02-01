@@ -29,6 +29,10 @@
             background-color: #374151;
             border-right: 3px solid #f59e0b;
         }
+
+        .item-grid {
+            min-height: 50px;
+        }
     </style>
 </head>
 
@@ -438,20 +442,34 @@
 
                         // 网站排序
                         document.querySelectorAll('.item-grid').forEach(el => {
-                            const catId = el.getAttribute('data-catid');
                             sortableInstances.push(new Sortable(el, {
+                                group: 'shared-items',
                                 handle: '.item-handle',
                                 animation: 150,
                                 ghostClass: 'opacity-50',
                                 onEnd: (evt) => {
-                                    const newOrderIds = Array.from(el.querySelectorAll('[data-id]'))
-                                        .map(child => child.getAttribute('data-id'));
+                                    // 重新构建所有项目的列表，以支持跨分类移动
+                                    const allGrids = document.querySelectorAll('.item-grid');
+                                    let newItems = [];
 
-                                    const otherItems = data.value.items.filter(i => i.categoryId !== catId);
-                                    const catItems = data.value.items.filter(i => i.categoryId === catId);
-                                    const reorderedCatItems = newOrderIds.map(id => catItems.find(i => i.id === id)).filter(Boolean);
+                                    allGrids.forEach(grid => {
+                                        const currentCatId = grid.getAttribute('data-catid');
+                                        const itemIds = Array.from(grid.querySelectorAll('[data-id]'))
+                                            .map(child => child.getAttribute('data-id'));
 
-                                    data.value.items = [...otherItems, ...reorderedCatItems];
+                                        itemIds.forEach(id => {
+                                            const item = data.value.items.find(i => i.id === id);
+                                            if (item) {
+                                                newItems.push({
+                                                    ...item,
+                                                    categoryId: currentCatId
+                                                });
+                                            }
+                                        });
+                                    });
+
+                                    // 更新数据并保存
+                                    data.value.items = newItems;
                                     saveData();
                                 }
                             }));
