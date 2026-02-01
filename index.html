@@ -9,6 +9,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 Vue 3 -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <!-- 引入 SortableJS -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <!-- 字体图标 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="icon" type="image/png" href="https://img.openocean.de5.net/img/2026/02/navigation (1).png">
@@ -42,10 +44,14 @@
             </div>
 
             <!-- 分类列表 -->
-            <div class="flex-1 overflow-y-auto py-4">
-                <div v-for="cat in data.categories" :key="cat.id" @click="scrollToCat(cat.id)"
+            <div id="category-list" class="flex-1 overflow-y-auto py-4">
+                <div v-for="cat in data.categories" :key="cat.id" :data-id="cat.id" @click="scrollToCat(cat.id)"
                     class="px-6 py-3 cursor-pointer hover:bg-gray-800 flex items-center justify-between group">
                     <div class="flex items-center">
+                        <div v-if="isAdmin" class="mr-2 cursor-move text-gray-600 hover:text-gray-400 category-handle"
+                            @click.stop>
+                            <i class="fa-solid fa-grip-vertical"></i>
+                        </div>
                         <div class="w-6 h-6 flex-shrink-0 mr-2 flex items-center justify-center overflow-hidden">
                             <img v-if="cat.icon && cat.icon.startsWith('http')" :src="cat.icon"
                                 class="w-full h-full object-contain" onerror="this.style.display='none'">
@@ -111,9 +117,17 @@
                     </div>
 
                     <!-- 卡片网格 -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                        <div v-for="item in getItemsByCat(cat.id)" :key="item.id"
+                    <div :id="'item-grid-' + cat.id"
+                        class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 item-grid"
+                        :data-catid="cat.id">
+                        <div v-for="item in getItemsByCat(cat.id)" :key="item.id" :data-id="item.id"
                             class="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow group relative border border-gray-100 flex items-start">
+
+                            <div v-if="isAdmin"
+                                class="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-move text-gray-300 item-handle px-1"
+                                @click.stop>
+                                <i class="fa-solid fa-grip-vertical"></i>
+                            </div>
 
                             <!-- 操作按钮 -->
                             <div v-if="isAdmin"
@@ -201,7 +215,7 @@
     </div>
 
     <script>
-        const { createApp, ref, computed, onMounted } = Vue;
+        const { createApp, ref, computed, onMounted, nextTick, watch } = Vue;
 
         createApp({
             setup() {
@@ -395,7 +409,67 @@
                     document.getElementById('cat-' + id).scrollIntoView({ behavior: 'smooth' });
                 };
 
-                onMounted(fetchData);
+                // 初始化拖动排序
+                let sortableInstances = [];
+                const initSortable = () => {
+                    if (!isAdmin.value) {
+                        sortableInstances.forEach(s => s.destroy());
+                        sortableInstances = [];
+                        return;
+                    }
+
+                    nextTick(() => {
+                        // 分类排序
+                        const catList = document.getElementById('category-list');
+                        if (catList) {
+                            sortableInstances.push(new Sortable(catList, {
+                                handle: '.category-handle',
+                                animation: 150,
+                                ghostClass: 'bg-gray-700',
+                                onEnd: (evt) => {
+                                    const newOrder = Array.from(catList.querySelectorAll('[data-id]'))
+                                        .map(el => el.getAttribute('data-id'));
+                                    const reordered = newOrder.map(id => data.value.categories.find(c => c.id === id)).filter(Boolean);
+                                    data.value.categories = reordered;
+                                    saveData();
+                                }
+                            }));
+                        }
+
+                        // 网站排序
+                        document.querySelectorAll('.item-grid').forEach(el => {
+                            const catId = el.getAttribute('data-catid');
+                            sortableInstances.push(new Sortable(el, {
+                                handle: '.item-handle',
+                                animation: 150,
+                                ghostClass: 'opacity-50',
+                                onEnd: (evt) => {
+                                    const newOrderIds = Array.from(el.querySelectorAll('[data-id]'))
+                                        .map(child => child.getAttribute('data-id'));
+
+                                    const otherItems = data.value.items.filter(i => i.categoryId !== catId);
+                                    const catItems = data.value.items.filter(i => i.categoryId === catId);
+                                    const reorderedCatItems = newOrderIds.map(id => catItems.find(i => i.id === id)).filter(Boolean);
+
+                                    data.value.items = [...otherItems, ...reorderedCatItems];
+                                    saveData();
+                                }
+                            }));
+                        });
+                    });
+                };
+
+                // 监听数据变化和管理员状态变化
+                watch([isAdmin, () => data.value.categories.length, () => data.value.items.length], () => {
+                    sortableInstances.forEach(s => s.destroy());
+                    sortableInstances = [];
+                    if (isAdmin.value) initSortable();
+                });
+
+                onMounted(async () => {
+                    await fetchData();
+                    if (isAdmin.value) initSortable();
+                });
 
                 return {
                     data, isAdmin, passwordInput, isSaving,
