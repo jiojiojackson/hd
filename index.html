@@ -175,8 +175,13 @@
                 <textarea v-model="newItem.desc" placeholder="描述" class="w-full border p-2 rounded mb-2"></textarea>
                 <input v-model="newItem.icon" placeholder="图标链接 或 Emoji" class="w-full border p-2 rounded mb-4">
                 <div class="flex justify-end gap-2">
-                    <button @click="showAddItemModal=false" class="px-3 py-1 text-gray-500">取消</button>
-                    <button @click="addItem" class="px-3 py-1 bg-yellow-500 text-white rounded">保存</button>
+                    <button @click="showAddItemModal=false" :disabled="isSaving"
+                        class="px-3 py-1 text-gray-500 disabled:opacity-50">取消</button>
+                    <button @click="addItem" :disabled="isSaving"
+                        class="px-3 py-1 bg-yellow-500 text-white rounded flex items-center gap-2 disabled:opacity-50">
+                        <i v-if="isSaving" class="fa-solid fa-spinner fa-spin"></i>
+                        {{ isSaving ? '获取并保存中...' : '保存' }}
+                    </button>
                 </div>
             </div>
         </div>
@@ -202,6 +207,8 @@
                 // 表单数据
                 const newCat = ref({ name: '', icon: '' });
                 const newItem = ref({ categoryId: '', title: '', url: '', desc: '', icon: '' });
+                const isSaving = ref(false);
+
 
                 // 获取数据
                 const fetchData = async () => {
@@ -287,13 +294,49 @@
                     showAddItemModal.value = true;
                 };
 
-                const addItem = () => {
-                    data.value.items.push({
-                        id: Date.now().toString(),
-                        ...newItem.value
-                    });
-                    showAddItemModal.value = false;
-                    saveData();
+                const addItem = async () => {
+                    if (!newItem.value.title || !newItem.value.url) {
+                        alert('请填写必要信息');
+                        return;
+                    }
+
+                    isSaving.value = true;
+
+                    try {
+                        let finalIcon = newItem.value.icon;
+
+                        // 如果图标链接为空，尝试抓取
+                        if (!finalIcon) {
+                            try {
+                                const response = await fetch(`/api/favicon?url=${encodeURIComponent(newItem.value.url)}`);
+                                if (response.ok) {
+                                    const resData = await response.json();
+                                    if (resData.icon) {
+                                        finalIcon = resData.icon;
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('抓取图标失败:', e);
+                            }
+                        }
+
+                        // 确保至少有一个默认图标
+                        if (!finalIcon) finalIcon = '🔗';
+
+                        data.value.items.push({
+                            id: Date.now().toString(),
+                            ...newItem.value,
+                            icon: finalIcon
+                        });
+
+                        await saveData();
+                        showAddItemModal.value = false;
+                    } catch (err) {
+                        console.error('添加失败:', err);
+                        alert('添加失败，请重试');
+                    } finally {
+                        isSaving.value = false;
+                    }
                 };
 
                 const deleteItem = (id) => {
@@ -309,7 +352,7 @@
                 onMounted(fetchData);
 
                 return {
-                    data, isAdmin, passwordInput,
+                    data, isAdmin, passwordInput, isSaving,
                     showLoginModal, showAddCatModal, showAddItemModal,
                     newCat, newItem,
                     login, logout, getItemsByCat,
