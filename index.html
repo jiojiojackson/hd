@@ -39,8 +39,13 @@
 <body class="bg-gray-100 h-screen flex overflow-hidden text-sm">
     <div id="app" class="flex w-full h-full">
 
+        <!-- 移动端遮罩层 -->
+        <div v-if="showSidebar" @click="showSidebar = false"
+            class="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"></div>
+
         <!-- 左侧侧边栏 -->
-        <div class="w-64 bg-gray-900 text-gray-300 flex flex-col flex-shrink-0 transition-all duration-300">
+        <div
+            :class="['fixed inset-y-0 left-0 z-40 w-64 bg-gray-900 text-gray-300 flex flex-col flex-shrink-0 transition-all duration-300 transform md:relative md:translate-x-0', showSidebar ? 'translate-x-0' : '-translate-x-full']">
             <!-- Logo -->
             <div
                 class="h-16 flex items-center justify-center font-bold text-2xl text-yellow-500 tracking-wider border-b border-gray-800">
@@ -65,7 +70,7 @@
                     </div>
                     <!-- 编辑模式下的操作按钮 -->
                     <div v-if="isAdmin"
-                        class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        class="flex items-center gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
                         <button @click.stop="openEditCatModal(cat)" class="text-blue-400 hover:text-blue-500">
                             <i class="fa-solid fa-pen-to-square"></i>
                         </button>
@@ -91,10 +96,12 @@
         </div>
 
         <!-- 右侧内容区 -->
-        <div class="flex-1 flex flex-col h-full bg-gray-50">
+        <div class="flex-1 flex flex-col h-full bg-gray-50 min-w-0">
             <!-- 顶部栏 -->
             <div class="h-16 bg-white shadow-sm flex items-center px-6 justify-between flex-shrink-0 z-10">
-                <div class="text-gray-500"><i class="fa-solid fa-bars cursor-pointer"></i></div>
+                <div class="text-gray-500">
+                    <i class="fa-solid fa-bars cursor-pointer" @click="showSidebar = !showSidebar"></i>
+                </div>
                 <div class="flex items-center gap-4">
                     <a href="https://github.com" target="_blank" class="text-gray-500 hover:text-black"><i
                             class="fa-brands fa-github"></i> GitHub</a>
@@ -102,7 +109,7 @@
             </div>
 
             <!-- 网站卡片区域 -->
-            <div id="main-content" class="flex-1 overflow-y-auto p-6 scroll-smooth">
+            <div id="main-content" class="flex-1 overflow-y-auto p-4 md:p-6 scroll-smooth">
 
                 <div v-for="cat in data.categories" :key="cat.id" :id="'cat-'+cat.id" class="mb-10">
                     <!-- 分类标题 -->
@@ -128,14 +135,14 @@
                             class="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow group relative border border-gray-100 flex items-start">
 
                             <div v-if="isAdmin"
-                                class="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity cursor-move text-gray-300 item-handle px-1"
+                                class="absolute left-1 top-1/2 -translate-y-1/2 md:opacity-0 group-hover:opacity-100 transition-opacity cursor-move text-gray-300 item-handle px-1"
                                 @click.stop>
                                 <i class="fa-solid fa-grip-vertical"></i>
                             </div>
 
                             <!-- 操作按钮 -->
                             <div v-if="isAdmin"
-                                class="absolute top-2 right-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                class="absolute top-2 right-2 flex items-center gap-2 md:opacity-0 group-hover:opacity-100 transition-opacity">
                                 <button @click="openEditItemModal(item)" class="text-gray-400 hover:text-blue-500">
                                     <i class="fa-solid fa-pen"></i>
                                 </button>
@@ -169,8 +176,9 @@
 
         <!-- 弹窗组件们 -->
         <!-- 1. 登录弹窗 -->
-        <div v-if="showLoginModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white p-6 rounded shadow-lg w-80">
+        <div v-if="showLoginModal"
+            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div class="bg-white p-6 rounded shadow-lg w-full max-w-sm">
                 <h3 class="font-bold mb-4">管理员登录</h3>
                 <input v-model="passwordInput" type="password" placeholder="输入密码"
                     class="w-full border p-2 rounded mb-4">
@@ -182,8 +190,8 @@
         </div>
 
         <!-- 2. 分类弹窗 (添加/编辑) -->
-        <div v-if="showCatModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white p-6 rounded shadow-lg w-80">
+        <div v-if="showCatModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div class="bg-white p-6 rounded shadow-lg w-full max-w-sm">
                 <h3 class="font-bold mb-4">{{ isEditingCat ? '编辑分类' : '添加分类' }}</h3>
                 <input v-model="newCat.name" placeholder="分类名称" class="w-full border p-2 rounded mb-2">
                 <input v-model="newCat.icon" placeholder="图标 (Emoji 或 图标链接)" class="w-full border p-2 rounded mb-4">
@@ -197,8 +205,9 @@
         </div>
 
         <!-- 3. 网站弹窗 (添加/编辑) -->
-        <div v-if="showItemModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white p-6 rounded shadow-lg w-96">
+        <div v-if="showItemModal"
+            class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div class="bg-white p-6 rounded shadow-lg w-full max-w-md">
                 <h3 class="font-bold mb-4">{{ isEditingItem ? '编辑网站' : '添加网站' }}</h3>
                 <input v-model="newItem.title" placeholder="网站名称" class="w-full border p-2 rounded mb-2">
                 <input v-model="newItem.url" placeholder="链接地址 (https://...)" class="w-full border p-2 rounded mb-2">
@@ -235,6 +244,7 @@
                 const showItemModal = ref(false);
                 const isEditingCat = ref(false);
                 const isEditingItem = ref(false);
+                const showSidebar = ref(false);
 
                 // 表单数据
                 const newCat = ref({ id: '', name: '', icon: '' });
@@ -411,6 +421,7 @@
 
                 const scrollToCat = (id) => {
                     document.getElementById('cat-' + id).scrollIntoView({ behavior: 'smooth' });
+                    showSidebar.value = false;
                 };
 
                 // 初始化拖动排序
@@ -491,7 +502,7 @@
 
                 return {
                     data, isAdmin, passwordInput, isSaving,
-                    showLoginModal, showCatModal, showItemModal,
+                    showLoginModal, showCatModal, showItemModal, showSidebar,
                     isEditingCat, isEditingItem,
                     newCat, newItem,
                     login, logout, getItemsByCat,
