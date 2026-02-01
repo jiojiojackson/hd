@@ -53,15 +53,20 @@
                         </div>
                         <span>{{ cat.name }}</span>
                     </div>
-                    <!-- 编辑模式下的删除按钮 -->
-                    <button v-if="isAdmin" @click.stop="deleteCategory(cat.id)"
-                        class="text-red-500 opacity-0 group-hover:opacity-100">
-                        <i class="fa-solid fa-trash"></i>
-                    </button>
+                    <!-- 编辑模式下的操作按钮 -->
+                    <div v-if="isAdmin"
+                        class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button @click.stop="openEditCatModal(cat)" class="text-blue-400 hover:text-blue-500">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button @click.stop="deleteCategory(cat.id)" class="text-red-500 hover:text-red-600">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- 添加分类按钮 -->
-                <div v-if="isAdmin" @click="showAddCatModal=true"
+                <div v-if="isAdmin" @click="openAddCatModal"
                     class="px-6 py-3 cursor-pointer hover:bg-gray-800 text-yellow-500 text-center border-t border-gray-800 mt-2">
                     <i class="fa-solid fa-plus"></i> 添加分类
                 </div>
@@ -110,11 +115,16 @@
                         <div v-for="item in getItemsByCat(cat.id)" :key="item.id"
                             class="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow group relative border border-gray-100 flex items-start">
 
-                            <!-- 删除按钮 -->
-                            <button v-if="isAdmin" @click="deleteItem(item.id)"
-                                class="absolute top-2 right-2 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100">
-                                <i class="fa-solid fa-times-circle"></i>
-                            </button>
+                            <!-- 操作按钮 -->
+                            <div v-if="isAdmin"
+                                class="absolute top-2 right-2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button @click="openEditItemModal(item)" class="text-gray-400 hover:text-blue-500">
+                                    <i class="fa-solid fa-pen"></i>
+                                </button>
+                                <button @click="deleteItem(item.id)" class="text-gray-300 hover:text-red-500">
+                                    <i class="fa-solid fa-times-circle"></i>
+                                </button>
+                            </div>
 
                             <!-- 图标 -->
                             <div
@@ -153,34 +163,36 @@
             </div>
         </div>
 
-        <!-- 2. 添加分类弹窗 -->
-        <div v-if="showAddCatModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <!-- 2. 分类弹窗 (添加/编辑) -->
+        <div v-if="showCatModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div class="bg-white p-6 rounded shadow-lg w-80">
-                <h3 class="font-bold mb-4">添加分类</h3>
+                <h3 class="font-bold mb-4">{{ isEditingCat ? '编辑分类' : '添加分类' }}</h3>
                 <input v-model="newCat.name" placeholder="分类名称" class="w-full border p-2 rounded mb-2">
                 <input v-model="newCat.icon" placeholder="图标 (Emoji 或 图标链接)" class="w-full border p-2 rounded mb-4">
                 <div class="flex justify-end gap-2">
-                    <button @click="showAddCatModal=false" class="px-3 py-1 text-gray-500">取消</button>
-                    <button @click="addCategory" class="px-3 py-1 bg-yellow-500 text-white rounded">添加</button>
+                    <button @click="showCatModal=false" class="px-3 py-1 text-gray-500">取消</button>
+                    <button @click="saveCategory" class="px-3 py-1 bg-yellow-500 text-white rounded">
+                        {{ isEditingCat ? '保存修改' : '添加' }}
+                    </button>
                 </div>
             </div>
         </div>
 
-        <!-- 3. 添加网站弹窗 -->
-        <div v-if="showAddItemModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <!-- 3. 网站弹窗 (添加/编辑) -->
+        <div v-if="showItemModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div class="bg-white p-6 rounded shadow-lg w-96">
-                <h3 class="font-bold mb-4">添加网站</h3>
+                <h3 class="font-bold mb-4">{{ isEditingItem ? '编辑网站' : '添加网站' }}</h3>
                 <input v-model="newItem.title" placeholder="网站名称" class="w-full border p-2 rounded mb-2">
                 <input v-model="newItem.url" placeholder="链接地址 (https://...)" class="w-full border p-2 rounded mb-2">
                 <textarea v-model="newItem.desc" placeholder="描述" class="w-full border p-2 rounded mb-2"></textarea>
                 <input v-model="newItem.icon" placeholder="图标链接 或 Emoji" class="w-full border p-2 rounded mb-4">
                 <div class="flex justify-end gap-2">
-                    <button @click="showAddItemModal=false" :disabled="isSaving"
+                    <button @click="showItemModal=false" :disabled="isSaving"
                         class="px-3 py-1 text-gray-500 disabled:opacity-50">取消</button>
-                    <button @click="addItem" :disabled="isSaving"
+                    <button @click="saveItem" :disabled="isSaving"
                         class="px-3 py-1 bg-yellow-500 text-white rounded flex items-center gap-2 disabled:opacity-50">
                         <i v-if="isSaving" class="fa-solid fa-spinner fa-spin"></i>
-                        {{ isSaving ? '获取并保存中...' : '保存' }}
+                        {{ isSaving ? (isEditingItem ? '保存中...' : '获取并保存中...') : (isEditingItem ? '保存修改' : '保存') }}
                     </button>
                 </div>
             </div>
@@ -201,12 +213,14 @@
 
                 // 弹窗控制
                 const showLoginModal = ref(false);
-                const showAddCatModal = ref(false);
-                const showAddItemModal = ref(false);
+                const showCatModal = ref(false);
+                const showItemModal = ref(false);
+                const isEditingCat = ref(false);
+                const isEditingItem = ref(false);
 
                 // 表单数据
-                const newCat = ref({ name: '', icon: '' });
-                const newItem = ref({ categoryId: '', title: '', url: '', desc: '', icon: '' });
+                const newCat = ref({ id: '', name: '', icon: '' });
+                const newItem = ref({ id: '', categoryId: '', title: '', url: '', desc: '', icon: '' });
                 const isSaving = ref(false);
 
 
@@ -271,14 +285,32 @@
                 // 业务逻辑
                 const getItemsByCat = (catId) => data.value.items.filter(i => i.categoryId === catId);
 
-                const addCategory = () => {
-                    data.value.categories.push({
-                        id: Date.now().toString(),
-                        name: newCat.value.name,
-                        icon: newCat.value.icon || '📁'
-                    });
+                const openAddCatModal = () => {
+                    isEditingCat.value = false;
                     newCat.value = { name: '', icon: '' };
-                    showAddCatModal.value = false;
+                    showCatModal.value = true;
+                };
+
+                const openEditCatModal = (cat) => {
+                    isEditingCat.value = true;
+                    newCat.value = { ...cat };
+                    showCatModal.value = true;
+                };
+
+                const saveCategory = () => {
+                    if (isEditingCat.value) {
+                        const index = data.value.categories.findIndex(c => c.id === newCat.value.id);
+                        if (index !== -1) {
+                            data.value.categories[index] = { ...newCat.value };
+                        }
+                    } else {
+                        data.value.categories.push({
+                            id: Date.now().toString(),
+                            name: newCat.value.name,
+                            icon: newCat.value.icon || '📁'
+                        });
+                    }
+                    showCatModal.value = false;
                     saveData();
                 };
 
@@ -290,11 +322,18 @@
                 };
 
                 const openAddItemModal = (catId) => {
+                    isEditingItem.value = false;
                     newItem.value = { categoryId: catId, title: '', url: '', desc: '', icon: '' };
-                    showAddItemModal.value = true;
+                    showItemModal.value = true;
                 };
 
-                const addItem = async () => {
+                const openEditItemModal = (item) => {
+                    isEditingItem.value = true;
+                    newItem.value = { ...item };
+                    showItemModal.value = true;
+                };
+
+                const saveItem = async () => {
                     if (!newItem.value.title || !newItem.value.url) {
                         alert('请填写必要信息');
                         return;
@@ -305,8 +344,8 @@
                     try {
                         let finalIcon = newItem.value.icon;
 
-                        // 如果图标链接为空，尝试抓取
-                        if (!finalIcon) {
+                        // 如果图标链接为空，尝试抓取（仅在新增或链接改变且图标为空时）
+                        if (!finalIcon && !isEditingItem.value) {
                             try {
                                 const response = await fetch(`/api/favicon?url=${encodeURIComponent(newItem.value.url)}`);
                                 if (response.ok) {
@@ -323,17 +362,24 @@
                         // 确保至少有一个默认图标
                         if (!finalIcon) finalIcon = '🔗';
 
-                        data.value.items.push({
-                            id: Date.now().toString(),
-                            ...newItem.value,
-                            icon: finalIcon
-                        });
+                        if (isEditingItem.value) {
+                            const index = data.value.items.findIndex(i => i.id === newItem.value.id);
+                            if (index !== -1) {
+                                data.value.items[index] = { ...newItem.value, icon: finalIcon };
+                            }
+                        } else {
+                            data.value.items.push({
+                                id: Date.now().toString(),
+                                ...newItem.value,
+                                icon: finalIcon
+                            });
+                        }
 
                         await saveData();
-                        showAddItemModal.value = false;
+                        showItemModal.value = false;
                     } catch (err) {
-                        console.error('添加失败:', err);
-                        alert('添加失败，请重试');
+                        console.error('保存失败:', err);
+                        alert('保存失败，请重试');
                     } finally {
                         isSaving.value = false;
                     }
@@ -353,10 +399,12 @@
 
                 return {
                     data, isAdmin, passwordInput, isSaving,
-                    showLoginModal, showAddCatModal, showAddItemModal,
+                    showLoginModal, showCatModal, showItemModal,
+                    isEditingCat, isEditingItem,
                     newCat, newItem,
                     login, logout, getItemsByCat,
-                    addCategory, deleteCategory, openAddItemModal, addItem, deleteItem,
+                    openAddCatModal, openEditCatModal, saveCategory, deleteCategory,
+                    openAddItemModal, openEditItemModal, saveItem, deleteItem,
                     scrollToCat
                 };
             }
